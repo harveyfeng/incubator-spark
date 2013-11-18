@@ -27,8 +27,8 @@ object SparkBuild extends Build {
   // Hadoop version to build against. For example, "1.0.4" for Apache releases, or
   // "2.0.0-mr1-cdh4.2.0" for Cloudera Hadoop. Note that these variables can be set
   // through the environment variables SPARK_HADOOP_VERSION and SPARK_YARN.
-  val DEFAULT_HADOOP_VERSION = "1.0.4"
-  val DEFAULT_YARN = false
+  val DEFAULT_HADOOP_VERSION = "2.2.0"
+  val DEFAULT_YARN = true
 
   // HBase version; set as appropriate.
   val HBASE_VERSION = "0.94.6"
@@ -211,10 +211,13 @@ object SparkBuild extends Build {
       "com.ning" % "compress-lzf" % "0.8.4",
       "org.xerial.snappy" % "snappy-java" % "1.0.5",
       "org.ow2.asm" % "asm" % "4.0",
-      "com.google.protobuf" % "protobuf-java" % "2.4.1",
-      "com.typesafe.akka" % "akka-actor" % "2.0.5" excludeAll(excludeNetty),
-      "com.typesafe.akka" % "akka-remote" % "2.0.5" excludeAll(excludeNetty),
-      "com.typesafe.akka" % "akka-slf4j" % "2.0.5" excludeAll(excludeNetty),
+      "com.google.protobuf" % "protobuf-java" % "2.5.0",
+      //"com.typesafe.akka" % "akka-actor" % "2.0.5" excludeAll(excludeNetty),
+      //"com.typesafe.akka" % "akka-remote" % "2.0.5" excludeAll(excludeNetty),
+      //"com.typesafe.akka" % "akka-slf4j" % "2.0.5" excludeAll(excludeNetty),
+      "com.typesafe.akka" % "akka-actor" % "2.0.5-protobuf-2.5" excludeAll(excludeNetty),
+      "com.typesafe.akka" % "akka-remote" % "2.0.5-protobuf-2.5" excludeAll(excludeNetty),
+      "com.typesafe.akka" % "akka-slf4j" % "2.0.5-protobuf-2.5" excludeAll(excludeNetty),
       "it.unimi.dsi" % "fastutil" % "6.4.4",
       "colt" % "colt" % "1.2.0",
       "net.liftweb" % "lift-json_2.9.2" % "2.5",
@@ -289,7 +292,8 @@ object SparkBuild extends Build {
       "org.eclipse.paho" % "mqtt-client" % "0.4.0",
       "org.apache.flume" % "flume-ng-sdk" % "1.2.0" % "compile" excludeAll(excludeNetty, excludeSnappy),
       "org.twitter4j" % "twitter4j-stream" % "3.0.3" excludeAll(excludeNetty),
-      "com.typesafe.akka" % "akka-zeromq" % "2.0.5" excludeAll(excludeNetty),
+      //"com.typesafe.akka" % "akka-zeromq" % "2.0.5" excludeAll(excludeNetty),
+      "com.typesafe.akka" % "akka-zeromq" % "2.0.5-protobuf-2.5" excludeAll(excludeNetty),
       "org.apache.kafka" % "kafka_2.9.2" % "0.8.0-beta1"
         exclude("com.sun.jdmk", "jmxtools")
         exclude("com.sun.jmx", "jmxri")
