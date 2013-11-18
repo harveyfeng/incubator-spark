@@ -42,8 +42,6 @@ import org.apache.spark.util.Utils
 
 class ApplicationMaster(args: ApplicationMasterArguments, conf: Configuration) extends Logging {
 
-  def this(args: ApplicationMasterArguments) = this(args, new Configuration())
-  
   private var rpc: YarnRPC = YarnRPC.create(conf)
   private var resourceManager: AMRMProtocol = _
   private var appAttemptId: ApplicationAttemptId = _
@@ -58,6 +56,7 @@ class ApplicationMaster(args: ApplicationMasterArguments, conf: Configuration) e
     YarnConfiguration.DEFAULT_RM_AM_MAX_RETRIES)
   private var isLastAMRetry: Boolean = true
 
+  def this(args: ApplicationMasterArguments) = this(args, new Configuration())
 
   def run() {
     // Setup the directories so things go to yarn approved directories rather
