@@ -27,6 +27,7 @@ import scala.collection.mutable.Map
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.fs.{FileContext, FileStatus, FileSystem, Path, FileUtil}
 import org.apache.hadoop.fs.permission.FsPermission;
+import org.apache.hadoop.io.DataOutputBuffer
 import org.apache.hadoop.mapred.Master
 import org.apache.hadoop.net.NetUtils
 import org.apache.hadoop.security.UserGroupInformation
@@ -34,7 +35,7 @@ import org.apache.hadoop.yarn.api._
 import org.apache.hadoop.yarn.api.ApplicationConstants.Environment
 import org.apache.hadoop.yarn.api.protocolrecords._
 import org.apache.hadoop.yarn.api.records._
-import org.apache.hadoop.yarn.client.YarnClientImpl
+import org.apache.hadoop.yarn.client.api.impl.YarnClientImpl
 import org.apache.hadoop.yarn.conf.YarnConfiguration
 import org.apache.hadoop.yarn.ipc.YarnRPC
 import org.apache.hadoop.yarn.util.{Apps, Records}
@@ -46,37 +47,43 @@ import org.apache.spark.deploy.SparkHadoopUtil
 
 class Client(conf: Configuration, args: ClientArguments) extends YarnClientImpl with Logging {
 
-  def this(args: ClientArguments) = this(new Configuration(), args)
+  private val SPARK_STAGING: String = ".sparkStaging"
+  private val distCacheMgr = new ClientDistributedCacheManager()
 
   var rpc: YarnRPC = YarnRPC.create(conf)
   val yarnConf: YarnConfiguration = new YarnConfiguration(conf)
   val credentials = UserGroupInformation.getCurrentUser().getCredentials()
-  private val SPARK_STAGING: String = ".sparkStaging"
-  private val distCacheMgr = new ClientDistributedCacheManager()
 
   // Staging directory is private! -> rwx--------
   val STAGING_DIR_PERMISSION: FsPermission = FsPermission.createImmutable(0700:Short)
   // App files are world-wide readable and owner writable -> rw-r--r--
   val APP_FILE_PERMISSION: FsPermission = FsPermission.createImmutable(0644:Short) 
 
+  def this(args: ClientArguments) = this(new Configuration(), args)
+
   def run() {
     init(yarnConf)
     start()
     logClusterResourceDetails()
 
-    val newApp = super.getNewApplication()
-    val appId = newApp.getApplicationId()
+    val newApp = super.createApplication()
+    val newAppResponse = newApp.getNewApplicationResponse()
+    val appId = newAppResponse.getApplicationId()
 
-    verifyClusterResources(newApp)
-    val appContext = createApplicationSubmissionContext(appId)
+    verifyClusterResources(newAppResponse)
+    val appContext = newApp.getApplicationSubmissionContext()
     val appStagingDir = getAppStagingDir(appId)
     val localResources = prepareLocalResources(appStagingDir)
     val env = setupLaunchEnv(localResources, appStagingDir)
-    val amContainer = createContainerLaunchContext(newApp, localResources, env)
+    val amContainer = createContainerLaunchContext(newAppResponse, localResources, env)
 
     appContext.setQueue(args.amQueue)
     appContext.setAMContainerSpec(amContainer)
-    appContext.setUser(UserGroupInformation.getCurrentUser().getShortUserName())
+
+    val memoryResource = Records.newRecord(classOf[Resource]).asInstanceOf[Resource]
+    // Memory for the ApplicationMaster
+    memoryResource.setMemory(args.amMemory + YarnAllocationHandler.MEMORY_OVERHEAD)
+    appContext.setResource(memoryResource)
 
     submitApp(appContext)
 
@@ -100,7 +107,7 @@ class Client(conf: Configuration, args: ClientArguments) extends YarnClientImpl 
         queueInfo.getCurrentCapacity,
         queueInfo.getMaximumCapacity,
         queueInfo.getApplications.size,
-        queueInfo.getChildQueues.size)
+        queueInfo.getChildQueues.size))
   }
 
 
@@ -320,12 +327,13 @@ class Client(conf: Configuration, args: ClientArguments) extends YarnClientImpl 
     amContainer.setLocalResources(localResources)
     amContainer.setEnvironment(env)
 
-    val minResMemory: Int = newApp.getMinimumResourceCapability().getMemory()
+    val amMemory = args.amMemory
 
-    // TODO(harvey): This can probably be a val.
-    var amMemory = ((args.amMemory / minResMemory) * minResMemory) +
-      ((if ((args.amMemory % minResMemory) == 0) 0 else minResMemory) -
-        YarnAllocationHandler.MEMORY_OVERHEAD)
+    // TODO: Need a replacement for the following code to fix -Xmx?
+    // val minResMemory: Int = newApp.getMinimumResourceCapability().getMemory()
+    // var amMemory = ((args.amMemory / minResMemory) * minResMemory) +
+    //  ((if ((args.amMemory % minResMemory) == 0) 0 else minResMemory) -
+    //    YarnAllocationHandler.MEMORY_OVERHEAD)
 
     // Extra options for the JVM
     var JAVA_OPTS = ""
@@ -386,15 +394,10 @@ class Client(conf: Configuration, args: ClientArguments) extends YarnClientImpl 
     logInfo("Command for the ApplicationMaster: " + commands(0))
     amContainer.setCommands(commands)
 
-    val capability = Records.newRecord(classOf[Resource]).asInstanceOf[Resource]
-    // Memory for the ApplicationMaster.
-    capability.setMemory(args.amMemory + YarnAllocationHandler.MEMORY_OVERHEAD)
-    amContainer.setResource(capability)
-
     // Setup security tokens.
     val dob = new DataOutputBuffer()
     credentials.writeTokenStorageToStream(dob)
-    amContainer.setContainerTokens(ByteBuffer.wrap(dob.getData()))
+    amContainer.setTokens(ByteBuffer.wrap(dob.getData()))
 
     amContainer
   }
@@ -413,7 +416,7 @@ class Client(conf: Configuration, args: ClientArguments) extends YarnClientImpl 
       logInfo("Application report from ASM: \n" +
         "\t application identifier: " + appId.toString() + "\n" +
         "\t appId: " + appId.getId() + "\n" +
-        "\t clientToken: " + report.getClientToken() + "\n" +
+        "\t clientToAMToken: " + report.getClientToAMToken() + "\n" +
         "\t appDiagnostics: " + report.getDiagnostics() + "\n" +
         "\t appMasterHost: " + report.getHost() + "\n" +
         "\t appQueue: " + report.getQueue() + "\n" +
