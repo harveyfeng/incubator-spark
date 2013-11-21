@@ -93,11 +93,11 @@ class Client(conf: Configuration, args: ClientArguments) extends YarnClientImpl 
       (args.userJar == null) -> "Error: You must specify a user jar!",
       (args.userClass == null) -> "Error: You must specify a user class!",
       (args.numWorkers <= 0) -> "Error: You must specify atleast 1 worker!",
-      (args.amMemory <= YarnAllocationHandler.MEMORY_OVERHEAD) -> "Error: AM memory size must be +
-        greater then: " + YarnAllocationHandler.MEMORY_OVERHEAD,
-      (args.workerMemory <= YarnAllocationHandler.MEMORY_OVERHEAD) -> "Error: Worker memory size +
-        must be greater then: " + YarnAllocationHandler.MEMORY_OVERHEAD.toString
-    .foreach { case(cond, errStr) => 
+      (args.amMemory <= YarnAllocationHandler.MEMORY_OVERHEAD) -> ("Error: AM memory size must be " +
+        "greater than: " + YarnAllocationHandler.MEMORY_OVERHEAD),
+      (args.workerMemory <= YarnAllocationHandler.MEMORY_OVERHEAD) -> ("Error: Worker memory size " +
+        "must be greater than: " + YarnAllocationHandler.MEMORY_OVERHEAD)
+    ).foreach { case(cond, errStr) => 
       if (cond) {
         logError(errStr)
         args.printUsageAndExit(1)
@@ -121,7 +121,7 @@ class Client(conf: Configuration, args: ClientArguments) extends YarnClientImpl 
         queueInfo.getCurrentCapacity,
         queueInfo.getMaximumCapacity,
         queueInfo.getApplications.size,
-        queueInfo.getChildQueues.size)
+        queueInfo.getChildQueues.size))
   }
 
   def verifyClusterResources(app: GetNewApplicationResponse) = { 

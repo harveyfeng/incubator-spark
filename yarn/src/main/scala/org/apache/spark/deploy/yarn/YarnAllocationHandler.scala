@@ -114,7 +114,7 @@ private[yarn] class YarnAllocationHandler(
         Containers to be released: %s
         Cluster resources: %s
         """.format(
-          allocatedContainers.size,
+          _allocatedContainers.size,
           numWorkersRunning.get(),
           releasedContainerList,
           pendingReleaseContainers,
@@ -266,12 +266,12 @@ private[yarn] class YarnAllocationHandler(
         }
       }
       logDebug("""
-        Finished processing %d completed containers.
+        Finished processing %d containers.
         Current number of workers running: %d,
         releasedContainerList: %s,
         pendingReleaseContainers: %s
         """.format(
-          completedContainers.size,
+          allocatedContainers.size,
           numWorkersRunning.get(),
           releasedContainerList,
           pendingReleaseContainers))
@@ -441,20 +441,20 @@ private[yarn] class YarnAllocationHandler(
     req.addAllReleases(releasedContainerList)
 
     if (numWorkers > 0) {
-      logInfo("Allocating %d worker containers with %d of memory each.").format(numWorkers,
-        workerMemory + YarnAllocationHandler.MEMORY_OVERHEAD)
+      logInfo("Allocating %d worker containers with %d of memory each.".format(numWorkers,
+        workerMemory + YarnAllocationHandler.MEMORY_OVERHEAD))
     }
     else {
       logDebug("Empty allocation req ..  release : " + releasedContainerList)
     }
 
     for (request <- resourceRequests) {
-      logInfo("ResourceRequest (host : %s, num containers: %d, priority = %d , capability : %s)").
+      logInfo("ResourceRequest (host : %s, num containers: %d, priority = %d , capability : %s)".
         format(
           request.getHostName,
           request.getNumContainers,
           request.getPriority,
-          request.getCapability)
+          request.getCapability))
     }
     resourceManager.allocate(req)
   }
