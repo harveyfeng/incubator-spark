@@ -27,8 +27,12 @@ object SparkBuild extends Build {
   // Hadoop version to build against. For example, "1.0.4" for Apache releases, or
   // "2.0.0-mr1-cdh4.2.0" for Cloudera Hadoop. Note that these variables can be set
   // through the environment variables SPARK_HADOOP_VERSION and SPARK_YARN.
-  val DEFAULT_HADOOP_VERSION = "1.0.4"
-  val DEFAULT_YARN = false
+  val DEFAULT_HADOOP_VERSION = "2.0.5-alpha"
+
+  // Set to `true` if the Hadoop version used is (or is derived from) 2.x.x.
+  val IS_HADOOP_2 = false
+
+  val DEFAULT_YARN = true
 
   // HBase version; set as appropriate.
   val HBASE_VERSION = "0.94.6"
@@ -55,7 +59,7 @@ object SparkBuild extends Build {
 
   lazy val mllib = Project("mllib", file("mllib"), settings = mllibSettings) dependsOn(core)
 
-  lazy val yarn = Project("yarn", file("yarn"), settings = yarnSettings) dependsOn(core)
+  lazy val yarn = Project("yarn", file(if (IS_HADOOP_2) "new-yarn" else "yarn"), settings = yarnSettings) dependsOn(core)
 
   lazy val assemblyProj = Project("assembly", file("assembly"), settings = assemblyProjSettings)
     .dependsOn(core, bagel, mllib, repl, streaming) dependsOn(maybeYarn: _*)
@@ -72,6 +76,10 @@ object SparkBuild extends Build {
     case None => DEFAULT_YARN
     case Some(v) => v.toBoolean
   }
+
+  // Build against a protobuf-2.5 compatible Akka if Hadoop 2 is used.
+  lazy val protobufVersion = if (IS_HADOOP_2) "2.5.0" else "2.4.1"
+  lazy val akkaVersion = if (IS_HADOOP_2) "2.0.5-protobuf-2.5" else "2.0.5"
 
   // Conditionally include the yarn sub-project
   lazy val maybeYarn = if(isYarnEnabled) Seq[ClasspathDependency](yarn) else Seq[ClasspathDependency]()
@@ -211,10 +219,10 @@ object SparkBuild extends Build {
       "com.ning" % "compress-lzf" % "0.8.4",
       "org.xerial.snappy" % "snappy-java" % "1.0.5",
       "org.ow2.asm" % "asm" % "4.0",
-      "com.google.protobuf" % "protobuf-java" % "2.4.1",
-      "com.typesafe.akka" % "akka-actor" % "2.0.5" excludeAll(excludeNetty),
-      "com.typesafe.akka" % "akka-remote" % "2.0.5" excludeAll(excludeNetty),
-      "com.typesafe.akka" % "akka-slf4j" % "2.0.5" excludeAll(excludeNetty),
+      "com.google.protobuf" % "protobuf-java" % protobufVersion,
+      "com.typesafe.akka" % "akka-actor" % akkaVersion excludeAll(excludeNetty),
+      "com.typesafe.akka" % "akka-remote" % akkaVersion excludeAll(excludeNetty),
+      "com.typesafe.akka" % "akka-slf4j" % akkaVersion excludeAll(excludeNetty),
       "it.unimi.dsi" % "fastutil" % "6.4.4",
       "colt" % "colt" % "1.2.0",
       "net.liftweb" % "lift-json_2.9.2" % "2.5",
@@ -289,7 +297,7 @@ object SparkBuild extends Build {
       "org.eclipse.paho" % "mqtt-client" % "0.4.0",
       "org.apache.flume" % "flume-ng-sdk" % "1.2.0" % "compile" excludeAll(excludeNetty, excludeSnappy),
       "org.twitter4j" % "twitter4j-stream" % "3.0.3" excludeAll(excludeNetty),
-      "com.typesafe.akka" % "akka-zeromq" % "2.0.5" excludeAll(excludeNetty),
+      "com.typesafe.akka" % "akka-zeromq" % akkaVersion excludeAll(excludeNetty),
       "org.apache.kafka" % "kafka_2.9.2" % "0.8.0-beta1"
         exclude("com.sun.jdmk", "jmxtools")
         exclude("com.sun.jmx", "jmxri")
