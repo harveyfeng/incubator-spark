@@ -107,6 +107,7 @@ private[yarn] class YarnAllocationHandler(
   def releaseContainer(container: Container) {
     val containerId = container.getId
     pendingReleaseContainers.put(containerId, true)
+    amClient.releaseAssignedContainer(containerId)
   }
 
   def allocateResources() {
@@ -126,7 +127,7 @@ private[yarn] class YarnAllocationHandler(
       logDebug("""
         Allocated containers: %d
         Current worker count: %d
-        Containers released: %d
+        Containers released: %s
         Containers to-be-released: %s
         Cluster resources: %s
         """.format(
@@ -147,7 +148,7 @@ private[yarn] class YarnAllocationHandler(
             new ArrayBuffer[Container]())
           containersForHost += container
         } else {
-          // Release containers that don't satisfy resource constraints.
+          // Release container, since it doesn't satisfy resource constraints.
           releaseContainer(container)
         }
       }
@@ -246,18 +247,18 @@ private[yarn] class YarnAllocationHandler(
         assert(container.getResource.getMemory >= workerMemoryOverhead)
 
         if (numWorkersRunningNow > maxWorkers) {
-          logInfo("""Ignoring container %d at host %s, since we already have the required number of
+          logInfo("""Ignoring container %s at host %s, since we already have the required number of
             containers for it.""".format(containerId, workerHostname))
           releaseContainer(container)
           numWorkersRunning.decrementAndGet()
         } else {
           val workerId = workerIdCounter.incrementAndGet().toString
-          val driverUrl = "akka.tcp://spark@%s:%s/user/%s".format(
+          val driverUrl = "akka://spark@%s:%s/user/%s".format(
             System.getProperty("spark.driver.host"),
             System.getProperty("spark.driver.port"),
             CoarseGrainedSchedulerBackend.ACTOR_NAME)
 
-          logInfo("Launching container %d for on host %s".format(containerId, workerHostname))
+          logInfo("Launching container %s for on host %s".format(containerId, workerHostname))
 
           // To be safe, remove the container from `pendingReleaseContainers`.
           pendingReleaseContainers.remove(containerId)
@@ -274,7 +275,7 @@ private[yarn] class YarnAllocationHandler(
               allocatedRackCount.put(rack, allocatedRackCount.getOrElse(rack, 0) + 1)
             }
           }
-
+          logInfo("Launching WorkerRunnable. driverUrl: %s,  workerHostname: %s".format(driverUrl, workerHostname))
           val workerRunnable = new WorkerRunnable(
             container,
             conf,
@@ -287,7 +288,7 @@ private[yarn] class YarnAllocationHandler(
         }
       }
       logDebug("""
-        Finished allocating %d containers (from %s originally).
+        Finished allocating %s containers (from %s originally).
         Current number of workers running: %d,
         releasedContainerList: %s,
         pendingReleaseContainers: %s
@@ -314,7 +315,7 @@ private[yarn] class YarnAllocationHandler(
           // Decrement the number of workers running. The next iteration of the ApplicationMaster's
           // reporting thread will take care of allocating.
           numWorkersRunning.decrementAndGet()
-          logInfo("Completed container %d (state: %s, http address: %s, exit status: %s)".format(
+          logInfo("Completed container %s (state: %s, exit status: %s)".format(
             containerId,
             completedContainer.getState,
             completedContainer.getExitStatus()))
@@ -453,7 +454,7 @@ private[yarn] class YarnAllocationHandler(
           YarnAllocationHandler.PRIORITY)
 
         val containerRequestBuffer = new ArrayBuffer[ContainerRequest](
-          hostContainerRequests.size() + rackContainerRequests.size() + 1)
+          hostContainerRequests.size + rackContainerRequests.size() + anyContainerRequests.size)
 
         containerRequestBuffer ++= hostContainerRequests
         containerRequestBuffer ++= rackContainerRequests

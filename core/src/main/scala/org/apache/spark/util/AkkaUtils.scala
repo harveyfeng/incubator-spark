@@ -60,7 +60,7 @@ private[spark] object AkkaUtils {
       akka.remote.netty.write-timeout = %ds
       """.format(host, port, akkaTimeout, akkaFrameSize, akkaThreads, akkaBatchSize,
         lifecycleEvents, akkaWriteTimeout))
-
+    println("creating ActorSystem with host:port as " + host + ":" + port)
     val actorSystem = ActorSystem(name, akkaConf)
 
     // Figure out the port number we bound to, in case port was passed as 0. This is a bit of a

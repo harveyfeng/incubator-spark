@@ -198,10 +198,11 @@ private[spark] class ClusterScheduler(val sc: SparkContext)
    */
   def resourceOffers(offers: Seq[WorkerOffer]): Seq[Seq[TaskDescription]] = synchronized {
     SparkEnv.set(sc.env)
-
+    logInfo("Got: " + offers.size + " offers.")
     // Mark each slave as alive and remember its hostname
     for (o <- offers) {
       executorIdToHost(o.executorId) = o.host
+      logInfo("Host: " + o.host)
       if (!executorsByHost.contains(o.host)) {
         executorsByHost(o.host) = new HashSet[String]()
         executorGained(o.executorId, o.host)
@@ -212,8 +213,9 @@ private[spark] class ClusterScheduler(val sc: SparkContext)
     val tasks = offers.map(o => new ArrayBuffer[TaskDescription](o.cores))
     val availableCpus = offers.map(o => o.cores).toArray
     val sortedTaskSets = rootPool.getSortedTaskSetQueue()
+    logInfo("Going through sorted task sets.")
     for (taskSet <- sortedTaskSets) {
-      logDebug("parentName: %s, name: %s, runningTasks: %s".format(
+      logInfo("parentName: %s, name: %s, runningTasks: %s".format(
         taskSet.parent.name, taskSet.name, taskSet.runningTasks))
     }
 
@@ -226,6 +228,7 @@ private[spark] class ClusterScheduler(val sc: SparkContext)
         for (i <- 0 until offers.size) {
           val execId = offers(i).executorId
           val host = offers(i).host
+          logInfo("Host: " + host)
           for (task <- taskSet.resourceOffer(execId, host, availableCpus(i), maxLocality)) {
             tasks(i) += task
             val tid = task.taskId

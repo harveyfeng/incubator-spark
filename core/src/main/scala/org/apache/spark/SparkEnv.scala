@@ -115,14 +115,16 @@ object SparkEnv extends Logging {
       port: Int,
       isDriver: Boolean,
       isLocal: Boolean): SparkEnv = {
-
+    logInfo("===========  hostname:port, before creating actor system: " + hostname + ":"+ port)
     val (actorSystem, boundPort) = AkkaUtils.createActorSystem("spark", hostname, port)
 
     // Bit of a hack: If this is the driver and our port was 0 (meaning bind to any free port),
     // figure out which port number Akka actually bound to and set spark.driver.port to it.
     if (isDriver && port == 0) {
       System.setProperty("spark.driver.port", boundPort.toString)
+      logInfo("Setting port to: " + boundPort.toString)
     }
+    logInfo("port after akka: " + System.getProperty("spark.driver.port"))
 
     // set only if unset until now.
     if (System.getProperty("spark.hostPort", null) == null) {

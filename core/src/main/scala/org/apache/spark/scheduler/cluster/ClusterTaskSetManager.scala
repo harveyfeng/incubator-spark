@@ -342,10 +342,18 @@ private[spark] class ClusterTaskSetManager(
       maxLocality: TaskLocality.TaskLocality)
     : Option[TaskDescription] =
   {
+    logInfo("execId: " + execId)
+    logInfo("numTasks: " + numTasks)
+    logInfo("tasksSuccessful: " + tasksSuccessful)
+    logInfo("availableCpus: " + availableCpus)
+    logInfo("CPUS_PER_TASK: " + CPUS_PER_TASK)
     if (tasksSuccessful < numTasks && availableCpus >= CPUS_PER_TASK) {
       val curTime = clock.getTime()
 
       var allowedLocality = getAllowedLocalityLevel(curTime)
+      logInfo("allowedLocality: " + allowedLocality)
+      logInfo("maxLocality: " + maxLocality)
+
       if (allowedLocality > maxLocality) {
         allowedLocality = maxLocality   // We're not allowed to search for farther-away tasks
       }

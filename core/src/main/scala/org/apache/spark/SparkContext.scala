@@ -110,6 +110,9 @@ class SparkContext(
     isLocal)
   SparkEnv.set(env)
 
+  logInfo("spark.driver.host: " + System.getProperty("spark.driver.host"))
+  logInfo("spark.driver.port: " + System.getProperty("spark.driver.port"))
+
   // Used to store a URL for each static file/jar together with the file's local timestamp
   private[spark] val addedFiles = HashMap[String, Long]()
   private[spark] val addedJars = HashMap[String, Long]()
