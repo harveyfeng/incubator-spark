@@ -53,13 +53,12 @@ class ApplicationMaster(args: ApplicationMasterArguments, conf: Configuration) e
   private val fs = FileSystem.get(yarnConf)
 
   private var yarnAllocator: YarnAllocationHandler = _
+  private var isFinished: Boolean = false
   private var uiAddress: String = _
-
   private val maxAppAttempts: Int = conf.getInt(
     YarnConfiguration.RM_AM_MAX_ATTEMPTS, YarnConfiguration.DEFAULT_RM_AM_MAX_ATTEMPTS)
   private var isLastAMRetry: Boolean = true
   private var amClient: AMRMClient[ContainerRequest] = _
-  private var isFinished: Boolean = false
 
   // Default to numWorkers * 2, with minimum of 3
   private val maxNumWorkerFailures = System.getProperty("spark.yarn.max.worker.failures",
@@ -291,9 +290,8 @@ class ApplicationMaster(args: ApplicationMasterArguments, conf: Configuration) e
             logInfo("Allocating %d containers to make up for (potentially) lost containers".
               format(missingWorkerCount))
             yarnAllocator.addResourceRequests(missingWorkerCount)
-          } else {
-            sendProgress()
           }
+          sendProgress()
           Thread.sleep(sleepTime)
         }
       }
@@ -308,7 +306,7 @@ class ApplicationMaster(args: ApplicationMasterArguments, conf: Configuration) e
   private def sendProgress() {
     logDebug("Sending progress")
     // Simulated with an allocate request with no nodes requested.
-    yarnAllocator.addResourceRequests(0)
+    yarnAllocator.allocateResources()
   }
 
   /*
