@@ -467,7 +467,7 @@ private[yarn] class YarnAllocationHandler(
 
     if (numWorkers > 0) {
       numPendingAllocate.addAndGet(numWorkers)
-      logInfo("Will Allocate %d worker containers, each with % memory".format(
+      logInfo("Will Allocate %d worker containers, each with %d memory".format(
         numWorkers,
         (workerMemory + YarnAllocationHandler.MEMORY_OVERHEAD)))
     } else {
